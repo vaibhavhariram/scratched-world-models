@@ -1,0 +1,8 @@
+[project]
+name = "logistics-world-graph-workers"
+version = "0.1.0"
+description = "Pipeline workers for Logistics World Graph — ingestion, clustering, scoring"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
