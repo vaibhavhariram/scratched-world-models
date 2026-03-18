@@ -153,10 +153,10 @@ def run_scoring(
                 cur.execute("SELECT AVG(distance_m) FROM logistics.building_stop_events WHERE building_id = %s", (bid,))
                 road_dist = cur.fetchone()[0] or 0
 
-                cur.execute("SELECT COUNT(*) FROM logistics.entrance_candidates WHERE building_id = %s", (bid,))
+                cur.execute("SELECT COUNT(*) FROM logistics.entrance_candidates WHERE building_id = %s AND pipeline_run_id = %s", (bid, job_id))
                 ent_ct = cur.fetchone()[0]
 
-                cur.execute("SELECT AVG(avg_dwell_sec) FROM logistics.entrance_candidates WHERE building_id = %s", (bid,))
+                cur.execute("SELECT AVG(avg_dwell_sec) FROM logistics.entrance_candidates WHERE building_id = %s AND pipeline_run_id = %s", (bid, job_id))
                 dwell = cur.fetchone()[0] or 0
 
             sub = {
@@ -174,14 +174,13 @@ def run_scoring(
                         (building_id, difficulty, stop_variance, road_distance,
                          entrance_count, dwell_time, sample_size, pipeline_run_id)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (building_id) DO UPDATE SET
+                    ON CONFLICT (building_id, pipeline_run_id) DO UPDATE SET
                         difficulty = EXCLUDED.difficulty,
                         stop_variance = EXCLUDED.stop_variance,
                         road_distance = EXCLUDED.road_distance,
                         entrance_count = EXCLUDED.entrance_count,
                         dwell_time = EXCLUDED.dwell_time,
                         sample_size = EXCLUDED.sample_size,
-                        pipeline_run_id = EXCLUDED.pipeline_run_id,
                         computed_at = now()
                     """,
                     (bid, round(difficulty, 4),
