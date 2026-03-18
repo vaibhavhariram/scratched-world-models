@@ -116,10 +116,104 @@ def main():
     _add_common_args(p_score)
     _add_target_args(p_score)
 
+    # Validation tooling commands (no job tracking)
+
+    # golden-add
+    p_gadd = subparsers.add_parser("golden-add", help="Add buildings to golden validation set")
+    p_gadd.add_argument("--building-ids", type=str, required=True, help="Comma-separated building IDs")
+    p_gadd.add_argument("--reason", type=str, default=None, help="Why this building was selected")
+
+    # golden-remove
+    p_grm = subparsers.add_parser("golden-remove", help="Remove buildings from golden set")
+    p_grm.add_argument("--building-ids", type=str, required=True, help="Comma-separated building IDs")
+
+    # golden-list
+    p_gls = subparsers.add_parser("golden-list", help="List all golden buildings")
+
+    # sanity-check
+    p_san = subparsers.add_parser("sanity-check", help="Run data quality checks")
+    p_san.add_argument("--building-id", type=int, default=None, help="Check a single building")
+
+    # rubric
+    p_rubric = subparsers.add_parser("rubric", help="Score a building with rubric")
+    p_rubric.add_argument("--pipeline-run-id", type=str, required=True, help="Pipeline run UUID")
+    p_rubric.add_argument("--building-id", type=int, required=True, help="Building ID")
+    p_rubric.add_argument("--assignment", type=int, required=True, choices=[0, 1, 2, 3], help="Assignment quality (0-3)")
+    p_rubric.add_argument("--entrance", type=int, required=True, choices=[0, 1, 2, 3], help="Entrance plausibility (0-3)")
+    p_rubric.add_argument("--score", type=int, required=True, choices=[0, 1, 2, 3], help="Score usefulness (0-3)")
+    p_rubric.add_argument("--note", type=str, default=None, help="Optional note")
+
+    # rubric-batch
+    p_rbatch = subparsers.add_parser("rubric-batch", help="Interactive batch rubric scoring")
+    p_rbatch.add_argument("--pipeline-run-id", type=str, required=True, help="Pipeline run UUID")
+
+    # sweep
+    p_sweep = subparsers.add_parser("sweep", help="Parameter sweep: test multiple clustering params")
+    p_sweep.add_argument("--eps", type=str, required=True, help="Comma-separated eps values (meters)")
+    p_sweep.add_argument("--min-samples", type=str, default="3", help="Comma-separated min_samples values")
+    p_sweep.add_argument("--tag", type=str, required=True, help="Tag for grouping sweep runs")
+    _add_common_args(p_sweep)
+
+    # compare
+    p_cmp = subparsers.add_parser("compare", help="Compare pipeline runs")
+    p_cmp.add_argument("--run-ids", type=str, default=None, help="Comma-separated run UUIDs")
+    p_cmp.add_argument("--tag", type=str, default=None, help="Compare all runs with this sweep tag")
+
     args = parser.parse_args()
     cfg = _build_config(args)
 
-    # Map command to job_type
+    # Validation tooling commands: no job tracking
+    if args.command == "golden-add":
+        from src.validate.golden import add_golden_buildings
+        building_ids = [int(x.strip()) for x in args.building_ids.split(",")]
+        count = add_golden_buildings(building_ids, args.reason)
+        print(f"Added {count} golden buildings")
+        return
+
+    elif args.command == "golden-remove":
+        from src.validate.golden import remove_golden_buildings
+        building_ids = [int(x.strip()) for x in args.building_ids.split(",")]
+        count = remove_golden_buildings(building_ids)
+        print(f"Removed {count} golden buildings")
+        return
+
+    elif args.command == "golden-list":
+        from src.validate.golden import print_golden_list
+        print_golden_list()
+        return
+
+    elif args.command == "sanity-check":
+        from src.validate.sanity import run_sanity_check
+        run_sanity_check([args.building_id] if args.building_id else None)
+        return
+
+    elif args.command == "rubric":
+        from src.validate.rubric import upsert_rubric
+        upsert_rubric(args.building_id, args.pipeline_run_id, args.assignment, args.entrance, args.score, args.note)
+        print(f"Saved rubric scores for building {args.building_id}")
+        return
+
+    elif args.command == "rubric-batch":
+        from src.validate.rubric import run_rubric_batch
+        run_rubric_batch(args.pipeline_run_id)
+        return
+
+    elif args.command == "sweep":
+        from src.validate.sweep import run_sweep
+        eps_values = [float(x.strip()) for x in args.eps.split(",")]
+        min_samples_values = [int(x.strip()) for x in args.min_samples.split(",")]
+        run_sweep(eps_values, min_samples_values, args.tag, cfg)
+        return
+
+    elif args.command == "compare":
+        from src.validate.compare import compare_runs
+        run_ids = None
+        if args.run_ids:
+            run_ids = [x.strip() for x in args.run_ids.split(",")]
+        compare_runs(run_ids, args.tag)
+        return
+
+    # Pipeline commands: create job and track
     job_type_map = {
         "ingest-buildings": "ingest",
         "ingest-stops": "ingest",
