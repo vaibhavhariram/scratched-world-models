@@ -33,10 +33,19 @@ No claim may appear in any doc unless a released artifact supports it.
 
 - Small commits. **Hard ceiling: 150 changed lines per commit.** Ask before
   exceeding. The repo contains a 15,868-line commit; that is the anti-pattern
-  being corrected.
+  being corrected. It is not confined to an abandoned branch: `0e619fb`, at
+  8,640 lines, is an ancestor of the working branch.
 - One concern per commit. Do not bundle a fix with a refactor.
 - When work would exceed the ceiling, stop at a natural boundary, commit, and
   continue. Do not batch.
+- **Documented exception.** A commit may exceed the ceiling only when the
+  change genuinely cannot be split, and only if its body names the indivisible
+  unit and says why splitting is impossible. "Splitting was inconvenient" is
+  not a reason; "this is one file already larger than the ceiling, so a
+  per-concern split changes nothing" is. The exception is a record, not a
+  waiver — every breach stays visible in the log with its justification
+  attached. Measured at P0: 6 of 20 commits breached, three of them single
+  files. See `docs/COMMIT_INVENTORY.md`.
 
 ## DECISIONS.md discipline
 
