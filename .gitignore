@@ -8,3 +8,12 @@ __pycache__/
 dist/
 *.egg-info/
 *.tsbuildinfo
+
+# macOS Finder artifacts
+.DS_Store
+
+# Session working notes — not repo artifacts
+.audit-notes.md
+
+# Output of scripts/run_db_audit.sh: contains live database contents
+audit-output/
