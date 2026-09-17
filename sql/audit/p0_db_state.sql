@@ -1,8 +1,10 @@
 -- P0.3 — database state audit (ROADMAP.md §2, P0 item 3). READ ONLY: every statement is a SELECT.
--- Run with `psql -f` against DATABASE_URL_RO: each statement is sent separately, so one failure does
--- not abort the rest. In the Supabase SQL editor run ONE SECTION AT A TIME — a pasted whole file
--- returns only the LAST statement's result and any error aborts the whole batch.
--- Migration state (is 009 applied?) is in the companion file sql/audit/p0_migration_state.sql.
+-- Run it with scripts/run_db_audit.sh, which keeps the credential out of argv. Under bare psql use
+-- `-f` so each statement is sent separately; in the Supabase SQL editor run ONE SECTION AT A TIME,
+-- because a pasted whole file returns only the LAST statement's result and any error aborts it.
+-- RUN sql/audit/p0_migration_state.sql FIRST. Unlike that file, the queries here reference their
+-- tables directly and so DO raise 42P01 if migration 003 was never applied. Every table below comes
+-- from 003, so a single non-NULL M1 row there certifies that all of them resolve.
 -- SCHEMA IS `logistics`, NOT `public` (002:1) — a role granted only on `public` fails every query
 -- here with "permission denied for schema logistics". If S3 errors with `function st_xmin does not
 -- exist`, uncomment the next line (session-local, writes nothing, only non-SELECT in this file):

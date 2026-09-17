@@ -3,8 +3,10 @@
 -- CLI ledger was never created, and in the Supabase SQL editor (whole file = one implicit
 -- transaction) that error would abort every statement after it. Keeping it in its own file means
 -- it cannot take the data audit down with it.
--- SCHEMA IS `logistics`, NOT `public` (002:1). Run with `psql -f`, or one section at a time in the
--- Supabase SQL editor — a pasted whole file returns only the LAST statement's result.
+-- SCHEMA IS `logistics`, NOT `public` (002:1). No statement here can raise on a missing relation,
+-- so this file is safe in every run mode: psql, whole-file paste, or section-by-section.
+-- RUN THIS FILE FIRST. M1 certifies migration 003, and every table p0_db_state.sql touches comes
+-- from 003 — so one M1 row tells you whether that file's queries can resolve at all.
 
 -- M1 AUTHORITATIVE PROBE — applied migrations detected by the objects they create. NULL = not
 -- applied; the three 009 rows decide whether 009 may be renumbered into a split set.
@@ -29,12 +31,20 @@ WHERE n.nspname = 'logistics' GROUP BY p.proname ORDER BY p.proname;
 SELECT conname, pg_get_constraintdef(oid) AS definition
 FROM pg_constraint WHERE conrelid = to_regclass('logistics.building_scores') ORDER BY conname;
 
--- M4 Supabase CLI ledger — LAST because it is the one statement expected to fail. README.md:16
--- documents applying 001-006 BY HAND and there is no supabase/config.toml, so the ledger may never
--- have been created; absence is NOT proof of non-application, M1 is the authoritative answer.
-SELECT to_regclass('supabase_migrations.schema_migrations') AS ledger_exists;
+-- M4 Supabase CLI ledger presence. README.md:16 documents applying 001-006 BY HAND and there is no
+-- supabase/config.toml, so the ledger may never have been created; absence is NOT proof of
+-- non-application — M1 is the authoritative answer.
+SELECT to_regclass('supabase_migrations.schema_migrations') IS NOT NULL AS ledger_present;
 
--- Run the next line ONLY if ledger_exists above is non-NULL. Left commented because unguarded it
--- raises 42P01. SELECT * rather than a column list: the ledger's columns vary by CLI version, and
--- naming `name` explicitly raises 42703 against older ones.
--- SELECT * FROM supabase_migrations.schema_migrations ORDER BY version;
+-- M5 Ledger contents, safe in every run mode. A direct SELECT would raise 42P01 at parse time when
+-- the ledger is absent, so the read is deferred into query_to_xml() and gated by CASE, which does
+-- not evaluate its THEN branch when the condition is false. Returns NULL when absent, never raises.
+-- SELECT * rather than a column list: the ledger's columns vary by Supabase CLI version, and naming
+-- `name` explicitly raises 42703 against older ones.
+SELECT CASE WHEN to_regclass('supabase_migrations.schema_migrations') IS NOT NULL
+            THEN query_to_xml('SELECT * FROM supabase_migrations.schema_migrations ORDER BY version',
+                              false, true, '')
+       END AS ledger_contents;
+-- query_to_xml needs a libxml-enabled build (standard on Supabase). If it errors with "unsupported
+-- XML feature", fall back to running this by hand ONLY when M4 returned true:
+--   SELECT * FROM supabase_migrations.schema_migrations ORDER BY version;
